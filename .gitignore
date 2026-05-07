@@ -1,1 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environments
+.venv/
+venv/
+
+# VSCode
+.vscode/
+
+# macOS
+.DS_Store
+
+# Co-writer user data
 workspace/
