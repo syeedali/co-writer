@@ -4,6 +4,11 @@ cowriter (4.0.0-1) unstable; urgency=medium
   * Multi-tab editor with file browser sidebar.
   * Adaptive panes: hide AI first, then Files/Notebook on smaller windows.
   * Header pane toggles, compact document actions, and responsive toolbars.
+  * Save feedback, close protection, recovery copies, and workspace memory.
+  * Keyboard shortcuts, Find/Replace, and full native Markdown preview.
+  * Cancellable AI activity, research stages, and background model discovery.
+  * Guided assistant tasks and explicit Check claims & sources workflow.
+  * Selectable Europe PMC, arXiv and OpenAlex search with source provenance.
   * Markdown formatting toolbar and preview.
   * Zettelkasten notebook with [[wikilinks]] and backlinks.
   * Model auto-detection and configurable AI model selector.

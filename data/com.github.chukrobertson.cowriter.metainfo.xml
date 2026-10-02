@@ -17,10 +17,13 @@
       <li>Multi-tab editor with markdown formatting toolbar</li>
       <li>File browser sidebar with workspace management</li>
       <li>Adaptive panes with show/hide controls; the AI pane hides first on smaller windows</li>
+      <li>Save indicators, close protection, unsaved draft recovery, and workspace restoration</li>
+      <li>Keyboard shortcuts, document search and replacement, and full Markdown preview</li>
+      <li>AI activity feedback and cancellation, with background model discovery</li>
       <li>Zettelkasten notebook with wikilinks and backlinks</li>
       <li>AI-powered document recovery for corrupt files</li>
       <li>Ollama integration for editing, drafting, and rewriting</li>
-      <li>Evidence audits with claim classification and scholarly sources from Europe PMC</li>
+      <li>Guided assistant tasks and evidence checks using Europe PMC, arXiv and OpenAlex</li>
       <li>Import from 9 formats including EPUB and MOBI</li>
       <li>Export to 6 formats including PDF, DOCX, and ODT</li>
     </ul>

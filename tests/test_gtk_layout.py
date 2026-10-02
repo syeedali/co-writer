@@ -12,7 +12,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 
-class GtkLayoutTests(unittest.TestCase):
+class GtkWindowTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.temp_dir = tempfile.TemporaryDirectory()
@@ -20,15 +20,33 @@ class GtkLayoutTests(unittest.TestCase):
         with patch.object(Path, "home", return_value=Path(cls.temp_dir.name)):
             sys.modules.pop("cowriter.gtk_app", None)
             cls.module = importlib.import_module("cowriter.gtk_app")
-        if not cls.module.Gtk.init_check():
+        from gi.repository import Gdk
+        if not cls.module.Gtk.init_check() or Gdk.Display.get_default() is None:
             raise unittest.SkipTest("GTK layout checks require a display")
         cls.app = cls.module.Adw.Application(
-            application_id="com.github.chukrobertson.cowriter.LayoutTests",
+            application_id="com.github.chukrobertson.cowriter." + cls.__name__,
             flags=cls.module.Gio.ApplicationFlags.NON_UNIQUE,
         )
         cls.app.register(None)
 
     def setUp(self):
+        self.case_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(self.case_dir.cleanup)
+        root = Path(self.case_dir.name)
+        locations = {
+            "DATA_DIR": root, "WORK_DIR": root / "workspace",
+            "VERSIONS_DIR": root / "workspace/versions",
+            "AUTOSAVE_DIR": root / "workspace/autosaves",
+            "NOTEBOOK_DIR": root / "workspace/notebook",
+            "CONFIG_FILE": root / "config.json", "SESSION_FILE": root / "session.json",
+            "SOUL_FILE": root / "soul.md",
+        }
+        for name, path in locations.items():
+            if name.endswith("_DIR"):
+                path.mkdir(parents=True, exist_ok=True)
+        patcher = patch.multiple(self.module, **locations)
+        patcher.start()
+        self.addCleanup(patcher.stop)
         with patch.object(self.module.CoWriterWindow, "_refresh_models"), \
              patch.object(self.module.CoWriterWindow, "_schedule_autosave"):
             self.win = self.module.CoWriterWindow(self.app)
@@ -48,6 +66,8 @@ class GtkLayoutTests(unittest.TestCase):
         self.win.set_default_size(width, 700)
         self.settle()
 
+
+class GtkLayoutTests(GtkWindowTestCase):
     def test_resize_hides_ai_first_and_restores_panes_without_losing_content(self):
         _, _, buf = self.win._get_current_page()
         buf.set_text("Unsaved draft", -1)

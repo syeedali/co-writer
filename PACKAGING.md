@@ -23,6 +23,10 @@ co-writer/
 ├── src/cowriter/           # Python package source
 │   ├── __init__.py
 │   ├── gtk_app.py          # Main GTK4 application
+│   ├── workspace.py        # Atomic saves and private recovery copies
+│   ├── preview.py          # Native Markdown preview
+│   ├── jobs.py             # AI cancellation
+│   ├── research.py         # Scholarly evidence lookup
 │   ├── __main__.py         # `python -m cowriter` entry point and legacy UI
 │   └── soul.md             # AI system prompt
 ├── data/                   # Desktop integration files
@@ -54,9 +58,15 @@ sudo apt-get install -y \
     python3-all \
     python3-setuptools \
     python3-requests \
+    python3-markdown-it \
     python3-gi \
     gir1.2-gtk-4.0 \
     gir1.2-adw-1 \
+    python3-reportlab \
+    python3-docx \
+    python3-odf \
+    python3-pypdf \
+    python3-striprtf \
     python3-build
 ```
 
@@ -102,8 +112,14 @@ The application stores user data in:
 
 - **Workspace**: `~/.local/share/cowriter/workspace/`
 - **Autosaves**: `~/.local/share/cowriter/workspace/autosaves/`
+- **Workspace memory**: `~/.local/share/cowriter/session.json` (window size, open document paths, cursors, and pane preferences)
 - **Versions**: `~/.local/share/cowriter/workspace/versions/`
 - **Custom soul prompt**: `~/.local/share/cowriter/soul.md`
+- **Preferences**: `~/.local/share/cowriter/config.json` (model, theme and source collection choices)
+
+Session state and recovery copies contain private document paths and text. They remain local, use private file permissions, and are excluded from Git. The native preview does not fetch remote images.
+
+Evidence checks use the existing Requests dependency to query Europe PMC, arXiv and OpenAlex; they add no package dependencies. These services receive short scholarly search queries. Evidence reports stay in the local versions directory and are not included in packages. See [Checking Claims Against Sources](README.md#checking-claims-against-sources) for coverage and controls.
 
 ## Uninstallation
 
@@ -144,7 +160,7 @@ lintian ../cowriter_*.deb
 
 ## Dependencies
 
-- **Runtime**: python3, python3-requests, python3-gi, GTK 4.10+ (`gir1.2-gtk-4.0`), libadwaita 1.4+ (`gir1.2-adw-1`)
+- **Runtime**: python3, python3-requests, python3-markdown-it, python3-gi, GTK 4.10+ (`gir1.2-gtk-4.0`), libadwaita 1.4+ (`gir1.2-adw-1`)
 - **Optional editor support**: GtkSourceView 5 (`gir1.2-gtksource-5`) for syntax highlighting and line numbers
 - **Recommended**: ollama (for AI features)
 - **Import/Export formats**:

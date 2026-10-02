@@ -5,7 +5,7 @@ echo "=== Co-Writer Ubuntu Package Build Script ==="
 echo ""
 
 echo "1. Checking build dependencies..."
-REQUIRED_PACKAGES="debhelper dh-python python3-all python3-setuptools python3-requests python3-tk python3-pypdf python3-striprtf"
+REQUIRED_PACKAGES="debhelper dh-python python3-all python3-setuptools python3-requests python3-markdown-it python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 python3-pypdf python3-striprtf"
 MISSING_PACKAGES=""
 
 for pkg in $REQUIRED_PACKAGES; do

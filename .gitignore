@@ -29,6 +29,8 @@ notebook/
 *.swo
 *~
 config.json
+session.json
+*.draft.json
 .env
 .env.*
 .codex/
