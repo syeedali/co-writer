@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" role="img" aria-label="A human hand and a sparkling AI hand writing together on one page">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#31577b"/>
+      <stop offset="1" stop-color="#172e4b"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffdf6"/>
+      <stop offset="1" stop-color="#e9f0ed"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="128" height="128" rx="27" fill="url(#tile)"/>
+  <rect x="35" y="23" width="64" height="91" rx="8" fill="#102a44" opacity=".35"/>
+  <rect x="32" y="19" width="64" height="91" rx="8" fill="url(#paper)"/>
+  <path d="M44 37h38 M44 48h33" fill="none" stroke="#b7c9cb" stroke-width="4" stroke-linecap="round"/>
+  <path d="M45 94c6-5 10 5 17 0 5-4 9-4 14 0 3 2 5 2 8 0" fill="none" stroke="#286b79" stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Two pen tips meet on the same writing surface. -->
+  <path d="M18 48 54 78 M110 48 74 78" fill="none" stroke="#17334e" stroke-width="12" stroke-linecap="round"/>
+  <path d="M18 48 54 78" fill="none" stroke="#f1b85f" stroke-width="8" stroke-linecap="round"/>
+  <path d="M110 48 74 78" fill="none" stroke="#f1b85f" stroke-width="8" stroke-linecap="round"/>
+  <path d="m49 75 8 7 4 7-9-4z M79 75l-8 7-4 7 9-4z" fill="#17334e"/>
+  <path d="m54 81 3 3 4 5-6-3z M74 81l-3 3-4 5 6-3z" fill="#f4d8a9"/>
+  <circle cx="61" cy="89" r="2" fill="#17334e"/>
+  <circle cx="67" cy="89" r="2" fill="#17334e"/>
+
+  <!-- Cool left hand and warm right hand make the partnership legible. -->
+  <path d="M0 43h13c7 0 13 3 18 8l12 11c3 3 3 6 1 8-2 2-5 2-8 0L25 60l7 11c2 3 1 6-2 8-3 1-6 0-8-3L11 62H0z" fill="#80d4c8"/>
+  <path d="M0 43h13c7 0 13 3 18 8l12 11" fill="none" stroke="#a8ede0" stroke-width="2"/>
+  <path d="M128 43h-13c-7 0-13 3-18 8L85 62c-3 3-3 6-1 8 2 2 5 2 8 0l11-10-7 11c-2 3-1 6 2 8 3 1 6 0 8-3l11-14h11z" fill="#efb18c"/>
+  <path d="M128 43h-13c-7 0-13 3-18 8L85 62" fill="none" stroke="#f8c6a5" stroke-width="2"/>
+
+  <!-- Fingers cross each pen shaft. -->
+  <path d="M24 51c2-2 5-2 7 0l11 9c3 2 3 6 1 8-2 2-5 2-8 0l-11-9c-3-2-3-5 0-8z" fill="#9ce2d5"/>
+  <path d="M104 51c-2-2-5-2-7 0l-11 9c-3 2-3 6-1 8 2 2 5 2 8 0l11-9c3-2 3-5 0-8z" fill="#f4bd98"/>
+  <path d="M29 54 40 64" fill="none" stroke="#5db9ad" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M99 54 88 64" fill="none" stroke="#d89071" stroke-width="1.5" stroke-linecap="round"/>
+
+  <!-- The spark identifies the AI writer on the left. -->
+  <path d="M18 38c0-6 3-9 9-9-6 0-9-3-9-9 0 6-3 9-9 9 6 0 9 3 9 9z" fill="#8df6df"/>
+  <circle cx="28" cy="19" r="2.5" fill="#8df6df"/>
+</svg>

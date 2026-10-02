@@ -1,17 +1,39 @@
 # Python
 __pycache__/
 *.pyc
+*.egg-info/
+.pytest_cache/
+
+# Build
+build/
+dist/
 
 # Virtual environments
 .venv/
 venv/
 
-# VSCode
+# IDE
 .vscode/
+.idea/
 
 # macOS
 .DS_Store
 
-# Co-writer user data
+# User data (generated at runtime)
 workspace/
+autosaves/
+versions/
+notebook/
+*.autosave.md
+*.swp
+*.swo
+*~
+config.json
+.env
+.env.*
+.codex/
+.agents/
+.aws/
 
+# Installed marker
+.installed

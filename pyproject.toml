@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cowriter"
+version = "4.0.0"
+authors = [
+    { name = "Chuck Robertson" }
+]
+description = "A local writing assistant that integrates with Ollama"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+    "Environment :: X11 Applications :: GTK",
+]
+dependencies = [
+    "requests>=2.25.0",
+]
+
+[project.optional-dependencies]
+export = [
+    "reportlab>=3.6.0",
+    "python-docx>=0.8.11",
+    "odfpy>=1.4.1",
+]
+import = [
+    "pypdf>=3.0.0",
+    "python-docx>=0.8.11",
+    "odfpy>=1.4.1",
+    "mobi>=0.3.0",
+    "striprtf>=0.0.15",
+]
+all = [
+    "reportlab>=3.6.0",
+    "python-docx>=0.8.11",
+    "odfpy>=1.4.1",
+    "pypdf>=3.0.0",
+    "mobi>=0.3.0",
+    "striprtf>=0.0.15",
+]
+
+[project.scripts]
+cowriter = "cowriter.gtk_app:main"
+
+[project.gui-scripts]
+cowriter-gui = "cowriter.gtk_app:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+cowriter = ["soul.md"]

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Name=Co-Writer
+Comment=Local research and writing companion with Documancy
+GenericName=Document Editor
+Exec=cowriter-gui
+Icon=com.github.chukrobertson.cowriter
+Terminal=false
+Categories=Office;TextEditor;WordProcessor;
+Keywords=document;editor;writing;ai;recovery;markdown;convert;
+MimeType=text/plain;text/markdown;text/html;application/pdf;application/vnd.openxmlformats-officedocument.wordprocessingml.document;application/vnd.oasis.opendocument.text;application/epub+zip;text/rtf;
+StartupNotify=true
+StartupWMClass=com.github.chukrobertson.cowriter

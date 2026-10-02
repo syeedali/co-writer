@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.github.chukrobertson.cowriter</id>
+
+  <name>Co-Writer</name>
+  <summary>Local research and writing companion with Documancy</summary>
+
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <description>
+    <p>
+      Co-Writer is a local research and writing companion. Its Documancy tools open, edit, reformat, recover, and export documents.
+    </p>
+    <p>Features include:</p>
+    <ul>
+      <li>Multi-tab editor with markdown formatting toolbar</li>
+      <li>File browser sidebar with workspace management</li>
+      <li>Adaptive panes with show/hide controls; the AI pane hides first on smaller windows</li>
+      <li>Zettelkasten notebook with wikilinks and backlinks</li>
+      <li>AI-powered document recovery for corrupt files</li>
+      <li>Ollama integration for editing, drafting, and rewriting</li>
+      <li>Evidence audits with claim classification and scholarly sources from Europe PMC</li>
+      <li>Import from 9 formats including EPUB and MOBI</li>
+      <li>Export to 6 formats including PDF, DOCX, and ODT</li>
+    </ul>
+  </description>
+
+  <launchable type="desktop-id">com.github.chukrobertson.cowriter.desktop</launchable>
+
+  <url type="homepage">https://github.com/chukrobertson/co-writer</url>
+  <url type="bugtracker">https://github.com/chukrobertson/co-writer/issues</url>
+
+  <provides>
+    <binary>cowriter</binary>
+    <binary>cowriter-gui</binary>
+  </provides>
+
+  <requires>
+    <id version="3.0" compare="ge">org.freedesktop.desktop</id>
+  </requires>
+
+  <recommends>
+    <control>keyboard</control>
+    <control>pointing</control>
+  </recommends>
+
+  <content_rating type="oars-1.1" />
+
+  <developer_name>Chuck Robertson</developer_name>
+
+  <releases>
+    <release version="4.0.0" date="2026-07-29">
+      <description>
+        <p>Co-Writer v4 adds Documancy, multi-tab editing, a file browser, notebook tools, markdown formatting, document recovery, model auto-detection, and comprehensive import/export. Adaptive panes keep the editor usable in smaller windows, with header controls to show or hide Files/Notebook and the AI assistant.</p>
+      </description>
+    </release>
+  </releases>
+</component>

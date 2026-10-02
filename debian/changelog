@@ -1,0 +1,12 @@
+cowriter (4.0.0-1) unstable; urgency=medium
+
+  * Major rewrite: Co-Writer v4 with Documancy.
+  * Multi-tab editor with file browser sidebar.
+  * Adaptive panes: hide AI first, then Files/Notebook on smaller windows.
+  * Header pane toggles, compact document actions, and responsive toolbars.
+  * Markdown formatting toolbar and preview.
+  * Zettelkasten notebook with [[wikilinks]] and backlinks.
+  * Model auto-detection and configurable AI model selector.
+  * Import/export: TXT, MD, HTML, PDF, DOCX, ODT, EPUB, MOBI, RTF.
+
+ -- Chuck Robertson <chukrobertson@users.noreply.github.com>  Mon, 29 Jul 2026 00:00:00 +0000

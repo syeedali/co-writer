@@ -1,0 +1,47 @@
+Source: cowriter
+Section: editors
+Priority: optional
+Maintainer: Chuck Robertson <chukrobertson@users.noreply.github.com>
+Build-Depends: debhelper-compat (= 13),
+               dh-python,
+               python3-all,
+               python3-setuptools,
+               python3-requests,
+               python3-reportlab,
+               python3-docx,
+               python3-odf,
+               python3-pypdf,
+               python3-striprtf
+Standards-Version: 4.6.2
+Rules-Requires-Root: no
+Homepage: https://github.com/chukrobertson/co-writer
+Vcs-Git: https://github.com/chukrobertson/co-writer.git
+Vcs-Browser: https://github.com/chukrobertson/co-writer
+
+Package: cowriter
+Architecture: all
+Depends: ${python3:Depends},
+         ${misc:Depends},
+         python3-requests,
+         python3-gi,
+         gir1.2-gtk-4.0 (>= 4.10),
+         gir1.2-adw-1 (>= 1.4)
+Recommends: ollama,
+            python3-reportlab,
+            python3-docx,
+            python3-odf,
+            python3-pypdf,
+            python3-striprtf,
+            gir1.2-gtksource-5
+Description: Local research and writing companion with Documancy
+ Co-Writer is a local research and writing workspace with AI assistance.
+ .
+ Features:
+  - Multi-tab editor with markdown formatting toolbar
+  - File browser sidebar with workspace, notebook, and version management
+  - Zettelkasten notebook with [[wikilinks]] and backlink tracking
+  - LLM-powered document recovery for corrupt or unreadable files
+  - AI chat with Ollama integration for editing, drafting, and rewriting
+  - Import: TXT, MD, HTML, PDF, DOCX, ODT, EPUB, MOBI, RTF
+  - Export: TXT, MD, HTML, PDF, DOCX, ODT
+  - Dark/light theme toggle, autosave, version tracking
