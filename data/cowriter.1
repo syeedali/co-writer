@@ -1,0 +1,59 @@
+.TH COWRITER 1 "October 2026" "Co-Writer 4.1.0" "User Commands"
+.SH NAME
+cowriter, cowriter-gui \- local research and writing workspace
+.SH SYNOPSIS
+.B cowriter-gui
+.RI [ FILE ...]
+.br
+.B cowriter
+.RI [ FILE ...]
+.SH DESCRIPTION
+Co-Writer opens a native GTK desktop editor with document tabs, Markdown preview,
+a notebook, offline spelling and common grammar checks, and poetry tools.
+Both commands launch the same application.
+Local file arguments open as document tabs in the existing application window.
+.PP
+The optional Poetry & prose window provides rhythm and rhyme hints, personal
+reading marks, repetition exploration, reference examples, and private notes.
+These tools run locally without an AI model or network service.
+Reading marks and craft notes are stored separately from manuscript text.
+.PP
+The optional assistant connects to Ollama for local AI tasks.
+Evidence searches contact the selected scholarly services.
+Desktop sharing creates copies for external applications, and the Open Pressroom
+handoff transfers an article copy with its linked evidence reports.
+.SH OPTIONS
+.TP
+.B --help
+Show application options and exit.
+.SH KEYBOARD SHORTCUTS
+.TP
+.B Ctrl+N, Ctrl+O, Ctrl+S
+Create, open, or save a document.
+.TP
+.B F7
+Visit the next spelling or grammar issue.
+.TP
+.B Ctrl+Alt+P
+Open Poetry & prose tools.
+.TP
+.B Ctrl+Shift+P
+Open Markdown preview.
+.SH FILES
+.TP
+.I ~/.local/share/cowriter/
+Local preferences, workspace, recovery copies, and versions.
+.TP
+.I ~/.local/share/cowriter/proofreading-words.json
+Personal spelling dictionary.
+.TP
+.I ~/.local/share/cowriter/poetry-notes/
+Private craft annotations associated with each document path.
+.SH SEE ALSO
+Installed README and packaging guide in
+.IR /usr/share/doc/cowriter/ .
+.br
+Project and release downloads:
+.I https://github.com/chukrobertson/co-writer
+.SH AUTHOR
+Chuck Robertson.

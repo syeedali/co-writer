@@ -38,6 +38,12 @@ if ! python3 -c "import requests" 2>/dev/null; then
     echo "WARNING: requests not installed. Install with: sudo apt-get install python3-requests"
 fi
 
+if ! command -v aspell &>/dev/null || ! aspell dump dicts 2>/dev/null | grep -qx en_US; then
+    echo "WARNING: Offline spelling needs Aspell's English dictionary."
+    echo "  Install with: sudo apt-get install aspell aspell-en"
+    echo "  Common grammar checks work without it; the editor will show 'Check limited'."
+fi
+
 echo "[2/5] Installing Python package..."
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${SCRIPT_DIR}"

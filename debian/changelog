@@ -1,3 +1,16 @@
+cowriter (4.1.0-1) unstable; urgency=medium
+
+  * Add private offline spelling and common grammar underlines.
+  * Add local poetry and prose tools with the bundled CMU dictionary.
+  * Add personal readings, rhyme maps, repetitions, reference cards and notes.
+  * Add formatted exports and desktop sharing with Writer, PDF and mail apps.
+  * Open document arguments from the desktop launcher without losing drafts.
+  * Hand off articles and linked evidence reports to Open Pressroom.
+  * Build with PEP 517 and run the regression suite during packaging.
+  * Document installer downloads, checksums, upgrades and private user data.
+
+ -- Chuck Robertson <chukrobertson@users.noreply.github.com>  Wed, 07 Oct 2026 21:41:00 -0400
+
 cowriter (4.0.0-1) unstable; urgency=medium
 
   * Major rewrite: Co-Writer v4 with Documancy.

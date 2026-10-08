@@ -4,8 +4,11 @@ Priority: optional
 Maintainer: Chuck Robertson <chukrobertson@users.noreply.github.com>
 Build-Depends: debhelper-compat (= 13),
                dh-python,
+               pybuild-plugin-pyproject,
                python3-all,
-               python3-setuptools,
+               python3-build,
+               python3-setuptools (>= 61.0),
+               python3-wheel,
                python3-requests,
                python3-markdown-it,
                python3-gi,
@@ -15,8 +18,11 @@ Build-Depends: debhelper-compat (= 13),
                python3-docx,
                python3-odf,
                python3-pypdf,
-               python3-striprtf
+               python3-striprtf,
+               aspell,
+               aspell-en
 Standards-Version: 4.6.2
+X-Python3-Version: >= 3.9
 Rules-Requires-Root: no
 Homepage: https://github.com/chukrobertson/co-writer
 Vcs-Git: https://github.com/chukrobertson/co-writer.git
@@ -30,23 +36,33 @@ Depends: ${python3:Depends},
          python3-markdown-it,
          python3-gi,
          gir1.2-gtk-4.0 (>= 4.10),
-         gir1.2-adw-1 (>= 1.4)
+         gir1.2-adw-1 (>= 1.4),
+         aspell,
+         aspell-en
 Recommends: ollama,
             python3-reportlab,
             python3-docx,
             python3-odf,
             python3-pypdf,
             python3-striprtf,
+            xdg-utils,
             gir1.2-gtksource-5
+Suggests: libreoffice-writer,
+          thunderbird
 Description: Local research and writing companion with Documancy
  Co-Writer is a local research and writing workspace with AI assistance.
  .
  Features:
   - Multi-tab editor with markdown formatting toolbar
+  - Offline spelling and common grammar underlines with correction suggestions
+  - Local poetry tools for syllables, rhythm hints and rhyming words
+  - Personal reading marks, rhyme maps, repetitions and private craft notes
   - File browser sidebar with workspace, notebook, and version management
   - Zettelkasten notebook with [[wikilinks]] and backlink tracking
   - LLM-powered document recovery for corrupt or unreadable files
   - AI chat with Ollama integration for editing, drafting, and rewriting
   - Import: TXT, MD, HTML, PDF, DOCX, ODT, EPUB, MOBI, RTF
   - Export: TXT, MD, HTML, PDF, DOCX, ODT
+  - Desktop handoffs to Writer, PDF viewers, mail composition, and Files
+  - Article and linked evidence handoff to Open Pressroom
   - Dark/light theme toggle, autosave, version tracking

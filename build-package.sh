@@ -1,48 +1,50 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "=== Co-Writer Ubuntu Package Build Script ==="
-echo ""
+# Build in a temporary copy so packaging never cleans the development checkout.
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "${SCRIPT_DIR}"
 
-echo "1. Checking build dependencies..."
-REQUIRED_PACKAGES="debhelper dh-python python3-all python3-setuptools python3-requests python3-markdown-it python3-gi gir1.2-gtk-4.0 gir1.2-adw-1 python3-pypdf python3-striprtf"
-MISSING_PACKAGES=""
-
-for pkg in $REQUIRED_PACKAGES; do
-    if ! dpkg -l | grep -q "^ii  $pkg "; then
-        MISSING_PACKAGES="$MISSING_PACKAGES $pkg"
-    fi
-done
-
-if [ -n "$MISSING_PACKAGES" ]; then
-    echo "Missing packages:$MISSING_PACKAGES"
-    echo "Install with: sudo apt-get install$MISSING_PACKAGES"
+if ! command -v dpkg-buildpackage >/dev/null; then
+    echo "Install the build dependencies listed in PACKAGING.md."
     exit 1
 fi
+BUILD_FLAGS=(-us -uc -b)
+if [[ "$#" -eq 1 && "$1" == "--no-check-builddeps" ]]; then
+    # For isolated builders that provide build dependencies outside dpkg's database.
+    BUILD_FLAGS+=(-d)
+elif [[ "$#" -eq 0 ]]; then
+    dpkg-checkbuilddeps
+else
+    echo "Usage: $0 [--no-check-builddeps]"
+    exit 2
+fi
 
-echo "All build dependencies installed."
-echo ""
+PACKAGE_VERSION="$(dpkg-parsechangelog -S Version)"
+BUILD_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/cowriter-build.XXXXXXXX")"
+trap 'rm -rf -- "${BUILD_ROOT}"' EXIT
+SOURCE_DIR="${BUILD_ROOT}/cowriter-${PACKAGE_VERSION%-*}"
+mkdir -p "${SOURCE_DIR}"
 
-echo "2. Cleaning previous builds..."
-rm -rf dist/ build/ src/*.egg-info debian/cowriter debian/files debian/.debhelper debian/debhelper-build-stamp 2>/dev/null || true
+tar --exclude='__pycache__' --exclude='*.pyc' --exclude='*.egg-info' \
+    --exclude='debian/cowriter' --exclude='debian/.debhelper' \
+    --exclude='debian/files' --exclude='debian/debhelper-build-stamp' \
+    --exclude='debian/*.substvars' --exclude='debian/*.debhelper' \
+    -cf - src/cowriter tests debian data pyproject.toml README.md PACKAGING.md CHANGELOG.md LICENSE \
+    | tar -xf - -C "${SOURCE_DIR}"
 
-echo "3. Building Python package..."
-python3 -m build --wheel
-echo ""
+echo "Building Co-Writer ${PACKAGE_VERSION}..."
+(
+    cd "${SOURCE_DIR}"
+    dpkg-buildpackage "${BUILD_FLAGS[@]}"
+)
 
-echo "4. Building Debian package..."
-dpkg-buildpackage -us -uc -b
-echo ""
-
-echo "5. Package built successfully!"
-echo ""
-echo "Package files:"
-ls -lh ../cowriter_*.deb 2>/dev/null || ls -lh *.deb 2>/dev/null || echo "Check parent directory for .deb files"
-echo ""
-echo "To install:"
-echo "  sudo dpkg -i ../cowriter_*.deb"
-echo "  sudo apt-get install -f  # Fix any missing dependencies"
-echo ""
-echo "To run:"
-echo "  cowriter-gui  # GUI launcher"
-echo "  cowriter      # Console launcher"
+mkdir -p "${SCRIPT_DIR}/dist"
+cp "${BUILD_ROOT}/cowriter_${PACKAGE_VERSION}_all.deb" "${SCRIPT_DIR}/dist/"
+cp "${BUILD_ROOT}"/*.buildinfo "${BUILD_ROOT}"/*.changes "${SCRIPT_DIR}/dist/"
+(
+    cd "${SCRIPT_DIR}/dist"
+    sha256sum "cowriter_${PACKAGE_VERSION}_all.deb" > SHA256SUMS
+)
+echo "Installer: ${SCRIPT_DIR}/dist/cowriter_${PACKAGE_VERSION}_all.deb"
+echo "Install with: sudo apt install ./dist/cowriter_${PACKAGE_VERSION}_all.deb"

@@ -15,6 +15,8 @@
     <p>Features include:</p>
     <ul>
       <li>Multi-tab editor with markdown formatting toolbar</li>
+      <li>Offline spelling and common grammar underlines</li>
+      <li>Local poetry tools, personal reading marks, rhyme maps, repetitions, and private craft notes</li>
       <li>File browser sidebar with workspace management</li>
       <li>Adaptive panes with show/hide controls; the AI pane hides first on smaller windows</li>
       <li>Save indicators, close protection, unsaved draft recovery, and workspace restoration</li>
@@ -26,6 +28,8 @@
       <li>Guided assistant tasks and evidence checks using Europe PMC, arXiv and OpenAlex</li>
       <li>Import from 9 formats including EPUB and MOBI</li>
       <li>Export to 6 formats including PDF, DOCX, and ODT</li>
+      <li>Formatted Writer copies, PDF review, email drafts, Files shortcuts, and separate revised imports</li>
+      <li>Article and linked evidence handoff to Open Pressroom</li>
     </ul>
   </description>
 
@@ -50,9 +54,16 @@
 
   <content_rating type="oars-1.1" />
 
-  <developer_name>Chuck Robertson</developer_name>
+  <developer id="com.github.chukrobertson">
+    <name>Chuck Robertson</name>
+  </developer>
 
   <releases>
+    <release version="4.1.0" date="2026-10-07">
+      <description>
+        <p>Offline spelling and grammar underlines and local poetry tools help you refine your own writing. Explore rhythm, rhymes and repetitions, mark your reading, and keep private craft notes. This release also adds formatted desktop sharing and article handoff to Open Pressroom.</p>
+      </description>
+    </release>
     <release version="4.0.0" date="2026-07-29">
       <description>
         <p>Co-Writer v4 adds Documancy, multi-tab editing, a file browser, notebook tools, markdown formatting, document recovery, model auto-detection, and comprehensive import/export. Adaptive panes keep the editor usable in smaller windows, with header controls to show or hide Files/Notebook and the AI assistant.</p>

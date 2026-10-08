@@ -12,11 +12,13 @@ except (ValueError, ImportError):
 from gi.repository import Gtk, Adw, Gio, GLib, GObject, Pango
 
 import json
+import sys
 import os
 import re
 import html as html_mod
 import zipfile
 import threading
+import uuid
 import requests
 from pathlib import Path
 from datetime import datetime
@@ -24,6 +26,10 @@ from datetime import datetime
 from .workspace import RecoveryStore, atomic_write, load_json, save_json
 from .jobs import AIJob, JobCancelled
 from .preview import render_buffer
+from .gtk_proofreading import EditorProofreading
+from .gtk_poetry import PoetryTools
+from .exporting import export_document, plain_text, import_office_text
+from . import desktop, pressroom
 
 from .research import (
     EVIDENCE_PROVIDERS,
@@ -147,17 +153,8 @@ def import_file_content(path):
     elif ext == ".pdf":
         from pypdf import PdfReader
         return '\n\n'.join(p.extract_text() or "" for p in PdfReader(path).pages)
-    elif ext == ".docx":
-        from docx import Document
-        return '\n\n'.join(p.text for p in Document(path).paragraphs)
-    elif ext == ".odt":
-        from odf.opendocument import load
-        doc = load(path)
-        parts = []
-        for el in doc.text.childNodes:
-            if el.tagName == 'text:p':
-                parts.append(''.join(ch.data for ch in el.childNodes if ch.nodeType == ch.TEXT_NODE))
-        return '\n\n'.join(parts)
+    elif ext in {".docx", ".odt"}:
+        return import_office_text(path)
     elif ext == ".epub":
         with zipfile.ZipFile(path, 'r') as epub:
             parts = []
@@ -210,6 +207,8 @@ class CoWriterWindow(Adw.ApplicationWindow):
         self._available_models = []
         self._ai_action_buttons = []
         self._tab_state = {}
+        self._proofreaders = {}
+        self._poetry_tools = None
         self._recovery_store = RecoveryStore(AUTOSAVE_DIR)
         self._recovery_queue = []
         self._recovery_dialog_pending = False
@@ -221,6 +220,7 @@ class CoWriterWindow(Adw.ApplicationWindow):
         self._model_generation = 0
         self._autosave_source = None
         self._last_evidence_report = None
+        self._handoff_busy = False
         self._session = load_json(SESSION_FILE)
         self._pane_preferences = self._session.get("panes", {})
         if not isinstance(self._pane_preferences, dict):
@@ -233,6 +233,9 @@ class CoWriterWindow(Adw.ApplicationWindow):
             self.maximize()
 
         cfg = load_config()
+        self._proofreading_enabled = cfg.get("proofreading", True) is not False
+        personal = load_json(DATA_DIR / "proofreading-words.json").get("words", [])
+        self._personal_words = {word for word in personal if isinstance(word, str)} if isinstance(personal, list) else set()
         self.dark_mode = cfg.get("dark_mode", True)
         Adw.StyleManager.get_default().set_color_scheme(
             Adw.ColorScheme.FORCE_DARK if self.dark_mode else Adw.ColorScheme.FORCE_LIGHT)
@@ -266,11 +269,29 @@ class CoWriterWindow(Adw.ApplicationWindow):
             ("toggle-files", lambda *_: self._toggle_pane(self.files_split, self.files_toggle)),
             ("toggle-ai", lambda *_: self._toggle_pane(self.ai_split, self.ai_toggle)),
             ("preview", self._on_preview),
+            ("next-writing-issue", lambda *_: self._next_writing_issue()),
+            ("poetry-tools", self._on_poetry_tools),
+            ("open-writer", self._on_open_writer),
+            ("open-pdf", self._on_open_pdf),
+            ("open-copy-with", self._on_open_copy_with),
+            ("show-file", self._on_show_file),
+            ("show-shared", self._on_show_shared),
+            ("email-selection", self._on_email_selection),
+            ("email-pdf", self._on_email_pdf),
+            ("email-odt", self._on_email_odt),
+            ("import-revised", self._on_import_revised),
+            ("send-pressroom", self._on_send_pressroom),
+            ("attach-pressroom-report", self._on_attach_pressroom_report),
         ]:
             action = Gio.SimpleAction.new(name, None)
             action.connect("activate", cb)
             actions.add_action(action)
+        proofreading = Gio.SimpleAction.new_stateful(
+            "proofreading", None, GLib.Variant("b", self._proofreading_enabled))
+        proofreading.connect("change-state", self._toggle_proofreading)
+        actions.add_action(proofreading)
         self.insert_action_group("win", actions)
+        self._desktop_actions = actions
         for name, accelerators in {
             "new-file": ["<Primary>n"], "open-file": ["<Primary>o"],
             "save": ["<Primary>s"], "save-as": ["<Primary><Shift>s"],
@@ -279,6 +300,8 @@ class CoWriterWindow(Adw.ApplicationWindow):
             "replace": ["<Primary>h"], "find-next": ["<Primary>g"],
             "find-previous": ["<Primary><Shift>g"], "toggle-files": ["F9"],
             "toggle-ai": ["<Shift>F9"], "preview": ["<Primary><Shift>p"],
+            "next-writing-issue": ["F7"],
+            "poetry-tools": ["<Primary><Alt>p"],
         }.items():
             self.get_application().set_accels_for_action("win." + name, accelerators)
 
@@ -299,7 +322,27 @@ class CoWriterWindow(Adw.ApplicationWindow):
         menu.append("Save Version", "win.save-version")
         menu.append("Find…", "win.find")
         menu.append("Replace…", "win.replace")
+        menu.append("Spelling & grammar", "win.proofreading")
+        menu.append("Next spelling or grammar issue", "win.next-writing-issue")
+        menu.append("Poetry & prose…", "win.poetry-tools")
         menu.append("Export…", "win.export")
+        share = Gio.Menu()
+        share.append("Send article to Open Pressroom", "win.send-pressroom")
+        share.append("Attach evidence report to article…", "win.attach-pressroom-report")
+        share.append("Open formatted copy in Writer", "win.open-writer")
+        share.append("Export PDF & open", "win.open-pdf")
+        share.append("Open Markdown copy with…", "win.open-copy-with")
+        share.append("Show current file in Files", "win.show-file")
+        share.append("Show shared copies in Files", "win.show-shared")
+        email = Gio.Menu()
+        email.append("Compose email from selection", "win.email-selection")
+        email.append("Email document as PDF", "win.email-pdf")
+        email.append("Email document as editable ODT", "win.email-odt")
+        share.append_section(None, email)
+        revised = Gio.Menu()
+        revised.append("Import revised copy…", "win.import-revised")
+        share.append_section(None, revised)
+        menu.append_submenu("Share & open", share)
         menu.append("Recover Document…", "win.recover")
         menu.append("Toggle Dark / Light Theme", "win.toggle-theme")
         menu_button = Gtk.MenuButton(icon_name="open-menu-symbolic", menu_model=menu)
@@ -319,7 +362,10 @@ class CoWriterWindow(Adw.ApplicationWindow):
         self.save_status = Gtk.Label(label="No document", xalign=0, hexpand=True,
                                      ellipsize=Pango.EllipsizeMode.END)
         self.word_status = Gtk.Label(label="0 words")
+        self.proofreading_status = Gtk.Button(label="Proofreading", has_frame=False)
+        self.proofreading_status.connect("clicked", lambda *_: self._next_writing_issue())
         status_box.append(self.save_status)
+        status_box.append(self.proofreading_status)
         status_box.append(self.word_status)
         toolbar_view.add_bottom_bar(status_box)
         self.ai_activity = Gtk.Box(spacing=6, margin_start=12, margin_end=12,
@@ -448,7 +494,8 @@ class CoWriterWindow(Adw.ApplicationWindow):
         sep2.set_margin_end(6)
         fmt_bar.append(sep2)
 
-        for label, cb in [("Preview", self._on_preview), ("Edit selection…", self._on_ai_edit)]:
+        for label, cb in [("Preview", self._on_preview), ("Poetry…", self._on_poetry_tools),
+                          ("Edit selection…", self._on_ai_edit)]:
             b = Gtk.Button.new_with_label(label)
             b.set_has_frame(False)
             b.connect("clicked", cb)
@@ -888,6 +935,9 @@ class CoWriterWindow(Adw.ApplicationWindow):
             "label": tab_label.get_first_child(), "baseline": content,
             "revision": 0, "autosaved_revision": -1, "status": "Saved",
         }
+        self._proofreaders[scroll] = EditorProofreading(
+            view, self._update_proofreading_status, self._learn_spelling,
+            ignored=self._personal_words, enabled=self._proofreading_enabled)
         buf.connect("changed", self._on_document_changed, scroll)
         buf.connect("modified-changed", lambda *_: self._update_document_status(scroll))
         buf.connect("mark-set", lambda *_: self._update_status_bar())
@@ -923,6 +973,9 @@ class CoWriterWindow(Adw.ApplicationWindow):
     def _remove_tab(self, page):
         if self._job and self._job.page is page:
             self._on_stop_ai()
+        proofreader = self._proofreaders.pop(page, None)
+        if proofreader:
+            proofreader.close()
         for i in range(self.edit_notebook.get_n_pages()):
             if self.edit_notebook.get_nth_page(i) is page:
                 self.edit_notebook.remove_page(i)
@@ -1001,7 +1054,11 @@ class CoWriterWindow(Adw.ApplicationWindow):
     def _update_status_bar(self):
         if self._disposed or self._bulk_edit:
             return False
+        if self._poetry_tools:
+            self._poetry_tools.bind_active()
+        self._update_proofreading_status()
         self._update_assistant_context()
+        self._update_desktop_actions()
         page, _, buf = self._get_current_page()
         state = self._tab_state.get(page)
         if not buf or not state:
@@ -1099,6 +1156,8 @@ class CoWriterWindow(Adw.ApplicationWindow):
         dialog.present()
 
     def _on_close_request(self, _window):
+        if self._poetry_tools and not self._poetry_tools.flush_craft_notes():
+            return True
         if self._allow_close:
             self._on_destroy()
             return False
@@ -1123,6 +1182,10 @@ class CoWriterWindow(Adw.ApplicationWindow):
         if self._disposed:
             return
         self._disposed = True
+        if self._poetry_tools:
+            self._poetry_tools.destroy()
+        for proofreader in self._proofreaders.values():
+            proofreader.close()
         if self._autosave_source:
             GLib.source_remove(self._autosave_source)
             self._autosave_source = None
@@ -1163,6 +1226,63 @@ class CoWriterWindow(Adw.ApplicationWindow):
         dialog = Adw.MessageDialog.new(self, title, str(error))
         dialog.add_response("close", "Close")
         dialog.present()
+
+    # ---- Offline Spelling & Grammar ----
+
+    def _on_poetry_tools(self, *_args):
+        if self._poetry_tools is None:
+            self._poetry_tools = PoetryTools(self, DATA_DIR / "poetry-notes")
+        self._poetry_tools.present()
+
+    def _update_proofreading_status(self):
+        if self._disposed:
+            return
+        page, _, _ = self._get_current_page()
+        checker = self._proofreaders.get(page)
+        if not checker:
+            label = "Proofreading"
+        elif not checker.enabled:
+            label = "Checking off"
+        elif checker.checking:
+            label = "Checking…"
+        else:
+            count = len(checker.issues)
+            label = f"{count} issue" + ("s" if count != 1 else "")
+            if checker.warning:
+                label = "Check limited"
+        self.proofreading_status.set_label(label)
+        self.proofreading_status.set_tooltip_text(
+            checker.warning if checker and checker.warning and checker.enabled else
+            "Local English checks: red underlines for spelling, blue for common grammar slips. "
+            "Click an underline for corrections; F7 goes to the next issue. "
+            "Toggle checking in the document menu.")
+
+    def _toggle_proofreading(self, action, value):
+        self._proofreading_enabled = value.get_boolean()
+        action.set_state(value)
+        cfg = load_config()
+        cfg["proofreading"] = self._proofreading_enabled
+        save_config(cfg)
+        for checker in self._proofreaders.values():
+            checker.set_enabled(self._proofreading_enabled)
+        self._update_proofreading_status()
+
+    def _next_writing_issue(self):
+        page, _, _ = self._get_current_page()
+        checker = self._proofreaders.get(page)
+        if checker:
+            checker.next_issue()
+
+    def _learn_spelling(self, word):
+        words = self._personal_words | {word}
+        try:
+            save_json(DATA_DIR / "proofreading-words.json", {"words": sorted(words)})
+        except OSError as exc:
+            self._show_error("Could not save personal dictionary", exc)
+            return
+        self._personal_words = words
+        for checker in self._proofreaders.values():
+            checker.set_ignored(checker.ignored | words)
 
     # ---- Find / Replace ----
 
@@ -1693,6 +1813,13 @@ class CoWriterWindow(Adw.ApplicationWindow):
         job = self._start_ai_job("Finding claims…")
         if job is None:
             return
+        page, _, _ = self._get_current_page()
+        job.research_context = {
+            "source": self.open_tabs[page],
+            "document": buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False),
+            "passage": passage, "scope": scope,
+            "model": OLLAMA_MODEL or "Not recorded",
+        }
         button.set_sensitive(False)
         self._append_chat("You", f"Run an evidence audit on {scope}.")
         self._append_chat(
@@ -1784,9 +1911,13 @@ EVIDENCE:
 {evidence}"""
 
         self._append_chat("AI", "")
+        audit_context = getattr(job, "research_context", None)
+        if audit_context:
+            audit_context = {**audit_context, "model": OLLAMA_MODEL or "Not recorded"}
         self._call_ollama(
             prompt,
-            lambda response: self._save_evidence_audit(button, response, claim_sources, coverage),
+            lambda response: self._save_evidence_audit(button, response, claim_sources, coverage,
+                                                     audit_context),
             self._update_assistant_context,
             include_history=False,
             record_history=False,
@@ -1795,7 +1926,7 @@ EVIDENCE:
             phase="Reviewing evidence…",
         )
 
-    def _save_evidence_audit(self, button, response, claim_sources, coverage=()):
+    def _save_evidence_audit(self, button, response, claim_sources, coverage=(), context=None):
         report = (
             "# Co-Writer Evidence Audit\n\n"
             f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}\n\n"
@@ -1809,6 +1940,12 @@ EVIDENCE:
         path = VERSIONS_DIR / f"evidence_audit_{timestamp()}_{datetime.now().strftime('%f')}.md"
         try:
             atomic_write(path, report, private=True)
+            if context:
+                record = pressroom.review_record(context, response.strip(), report, claim_sources, coverage)
+                try:
+                    pressroom.save_review(WORK_DIR / "research", context["source"], record)
+                except OSError as exc:
+                    self._append_chat("System", f"Report saved, but its article link could not be saved: {exc}")
             self._open_document(str(path))
             self._last_evidence_report = path
             self.evidence_report_button.set_visible(True)
@@ -2082,6 +2219,10 @@ EVIDENCE:
             self._show_error("Could not save document", exc)
             callback(False)
             return
+        try:
+            pressroom.copy_reviews(WORK_DIR / "research", old_path, path)
+        except OSError as exc:
+            self._append_chat("System", f"Draft saved, but research links could not follow Save As: {exc}")
         self.open_tabs[page] = str(path.resolve())
         state["baseline"] = content
         state["status"] = "Saved"
@@ -2142,64 +2283,277 @@ EVIDENCE:
         self._append_chat("System", f"Version saved: {path.name}")
         self._refresh_file_tree()
 
-    def _on_export(self, action, param):
-        _, _, buf = self._get_current_page()
-        if not buf:
+    # ---- Desktop handoffs ----
+
+    def _update_desktop_actions(self):
+        if not hasattr(self, "_desktop_actions"):
             return
-        content = buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False)
+        page, _, buf = self._get_current_page()
+        ready = bool(buf) and not self._handoff_busy
+        for name in ("open-writer", "open-pdf", "open-copy-with", "email-pdf", "email-odt", "export"):
+            self._desktop_actions.lookup_action(name).set_enabled(ready)
+        self._desktop_actions.lookup_action("email-selection").set_enabled(ready and buf.get_has_selection())
+        self._desktop_actions.lookup_action("show-file").set_enabled(bool(page))
 
-        dialog = Gtk.FileDialog.new()
-        dialog.set_title("Export Document")
-        dialog.set_initial_name("document.md")
+    def _document_snapshot(self):
+        page, _, buf = self._get_current_page()
+        if not buf:
+            return None
+        return (Path(self.open_tabs[page]).stem,
+                buf.get_text(buf.get_start_iter(), buf.get_end_iter(), False))
 
-        def save_cb(dlg, result):
+    def _background_copy(self, path, text, title, after):
+        if self._handoff_busy:
+            return
+        self._handoff_busy = True
+        self._update_desktop_actions()
+        self._append_chat("System", f"Preparing copy: {path.name}")
+        def work():
             try:
-                gf = dlg.save_finish(result)
-                path = gf.get_path()
-                ext = Path(path).suffix.lower()
-                if ext in (".txt", ".md"):
-                    Path(path).write_text(content, encoding="utf-8")
-                elif ext == ".html":
-                    h = f"<!DOCTYPE html>\n<html><head><meta charset=\"UTF-8\"><title>Doc</title>\n<style>body{{font-family:Georgia;max-width:800px;margin:40px auto;padding:20px;line-height:1.6}}pre{{font-family:monospace;white-space:pre-wrap}}</style></head>\n<body><pre>{html_mod.escape(content)}</pre></body></html>"
-                    Path(path).write_text(h, encoding="utf-8")
-                elif ext == ".pdf":
-                    from reportlab.lib.pagesizes import letter
-                    from reportlab.pdfgen import canvas
-                    c = canvas.Canvas(path, pagesize=letter)
-                    w, h = letter
-                    c.setFont("Courier", 10)
-                    t = c.beginText(72, h - 72)
-                    t.setFont("Courier", 10)
-                    for line in content.split('\n'):
-                        t.textLine(line)
-                    c.drawText(t)
-                    c.save()
-                elif ext == ".docx":
-                    from docx import Document
-                    from docx.shared import Pt
-                    doc = Document()
-                    doc.styles['Normal'].font.name = 'Courier New'
-                    doc.styles['Normal'].font.size = Pt(10)
-                    for line in content.split('\n'):
-                        doc.add_paragraph(line)
-                    doc.save(path)
-                elif ext == ".odt":
-                    from odf.opendocument import OpenDocumentText
-                    from odf.style import Style, TextProperties
-                    from odf.text import P
-                    odoc = OpenDocumentText()
-                    sty = Style(name="Mono", family="paragraph")
-                    sty.addElement(TextProperties(fontname="Courier New", fontsize="10pt"))
-                    odoc.automaticstyles.addElement(sty)
-                    for line in content.split('\n'):
-                        odoc.text.addElement(P(text=line, stylename=sty))
-                    odoc.save(path)
-                self._append_chat("System", f"Exported: {Path(path).name}")
+                export_document(path, text, title)
+                error = None
+            except Exception as exc:
+                error = exc
+            def deliver():
+                self._handoff_busy = False
+                if self._disposed:
+                    return False
+                self._update_desktop_actions()
+                if error:
+                    self._show_error("Could not create document copy", error)
+                else:
+                    self._append_chat("System", f"Copy saved: {path.name}")
+                    after(path)
+                return False
+            GLib.idle_add(deliver)
+        threading.Thread(target=work, daemon=True).start()
+
+    def _shared_copy(self, suffix, purpose, after):
+        snapshot = self._document_snapshot()
+        if not snapshot:
+            return
+        title, text = snapshot
+        directory = WORK_DIR / "shared"
+        try:
+            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+        except OSError as exc:
+            self._show_error("Could not prepare shared copy", exc)
+            return
+        stem = re.sub(r"[^\w.-]+", "_", title)[:80] or "document"
+        path = directory / f"{stem}_{purpose}_{timestamp()}_{uuid.uuid4().hex[:8]}{suffix}"
+        self._background_copy(path, text, title, after)
+
+    def _launch_file(self, path, choose=False, folder=False):
+        launcher = Gtk.FileLauncher.new(Gio.File.new_for_path(str(path)))
+        if choose:
+            if hasattr(launcher, "set_always_ask"):
+                launcher.set_always_ask(True)
+            else:
+                self._choose_application(path)
+                return
+        def finish(source, result):
+            try:
+                if folder:
+                    source.open_containing_folder_finish(result)
+                else:
+                    source.launch_finish(result)
+            except GLib.Error as exc:
+                if not self._disposed and not exc.matches(Gtk.DialogError.quark(), Gtk.DialogError.DISMISSED):
+                    self._show_error("Could not open desktop application", exc)
+        if folder:
+            launcher.open_containing_folder(self, None, finish)
+        else:
+            launcher.launch(self, None, finish)
+
+    def _choose_application(self, path):
+        # GTK 4.10 predates FileLauncher.always-ask (4.12).
+        dialog = Gtk.AppChooserDialog.new(self, Gtk.DialogFlags.MODAL, Gio.File.new_for_path(str(path)))
+        def chosen(widget, response):
+            if response == Gtk.ResponseType.OK:
+                app = widget.get_app_info()
+                try:
+                    if app:
+                        app.launch([Gio.File.new_for_path(str(path))], self.get_display().get_app_launch_context())
+                except GLib.Error as exc:
+                    self._show_error("Could not open selected application", exc)
+            widget.destroy()
+        dialog.connect("response", chosen)
+        dialog.present()
+
+    def _on_open_writer(self, *_args):
+        if desktop.writer_app() is None:
+            self._show_error("LibreOffice Writer is unavailable", "Install LibreOffice Writer to open a formatted office copy.")
+            return
+        def launch(path):
+            try:
+                desktop.launch_writer(path, self.get_display().get_app_launch_context())
+            except (RuntimeError, GLib.Error) as exc:
+                self._show_error("Could not open Writer", exc)
+        self._shared_copy(".odt", "writer", launch)
+
+    def _on_open_pdf(self, *_args):
+        self._shared_copy(".pdf", "review", self._launch_file)
+
+    def _on_open_copy_with(self, *_args):
+        self._shared_copy(".md", "copy", lambda path: self._launch_file(path, choose=True))
+
+    def _on_show_file(self, *_args):
+        page, _, _ = self._get_current_page()
+        if page:
+            path = Path(self.open_tabs[page])
+            self._launch_file(path if path.exists() else path.parent, folder=path.exists())
+
+    def _on_show_shared(self, *_args):
+        directory = WORK_DIR / "shared"
+        try:
+            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            self._launch_file(directory)
+        except OSError as exc:
+            self._show_error("Could not show shared copies", exc)
+
+    def _email_done(self, error):
+        if self._disposed or error == "cancelled":
+            return
+        if error:
+            self._show_error("Could not compose email", error)
+        else:
+            self._append_chat("System", "Mail composer opened. Review the message and send it from your mail app.")
+
+    def _on_email_selection(self, *_args):
+        snapshot = self._document_snapshot()
+        _, _, buf = self._get_current_page()
+        bounds = buf.get_selection_bounds() if buf else ()
+        if not snapshot or not bounds:
+            self._show_error("Select text first", "Highlight the passage you want to put into an email.")
+            return
+        start, end = bounds
+        passage = buf.get_text(start, end, False)
+        desktop.compose_email(snapshot[0], plain_text(passage), done=self._email_done)
+
+    def _email_copy(self, suffix):
+        snapshot = self._document_snapshot()
+        if snapshot:
+            self._shared_copy(suffix, "email", lambda path: desktop.compose_email(
+                snapshot[0], "Please see the attached document.", attachment=path, done=self._email_done))
+
+    def _on_email_pdf(self, *_args):
+        self._email_copy(".pdf")
+
+    def _on_email_odt(self, *_args):
+        self._email_copy(".odt")
+
+    def _import_revised_copy(self, source):
+        try:
+            content = import_file_content(source)
+            directory = WORK_DIR / "shared"
+            directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+            stem = re.sub(r"[^\w.-]+", "_", Path(source).stem)[:80] or "document"
+            path = directory / f"{stem}_revised_{timestamp()}_{uuid.uuid4().hex[:8]}.md"
+            atomic_write(path, content, private=True)
+            self._open_document(path)
+            self._append_chat("System", "Revised text imported into a new tab. The source file and your original draft are preserved.")
+            return path
+        except Exception as exc:
+            self._show_error("Could not import revised copy", exc)
+            return None
+
+    def _on_import_revised(self, *_args):
+        dialog = Gtk.FileDialog.new()
+        dialog.set_title("Import Revised Copy (Text and Basic Formatting)")
+        directory = WORK_DIR / "shared"
+        if directory.exists():
+            dialog.set_initial_folder(Gio.File.new_for_path(str(directory)))
+        filters = Gio.ListStore.new(Gtk.FileFilter)
+        office = Gtk.FileFilter(name="Documents")
+        for suffix in ("md", "txt", "odt", "docx", "html", "pdf", "rtf"):
+            office.add_pattern("*." + suffix)
+        filters.append(office)
+        dialog.set_filters(filters)
+        def finish(source, result):
+            try:
+                path = source.open_finish(result).get_path()
             except GLib.Error:
-                pass
-            except ImportError as e:
-                self._append_chat("System", str(e))
-        dialog.save(self, None, save_cb)
+                return
+            if not self._disposed:
+                if path:
+                    self._import_revised_copy(path)
+                else:
+                    self._show_error("Choose a local file", "Save the revised copy on your computer before importing it.")
+        dialog.open(self, None, finish)
+
+    def _on_attach_pressroom_report(self, *_args):
+        page, _, _ = self._get_current_page()
+        if page is None:
+            return
+        source_path = self.open_tabs[page]
+        dialog = Gtk.FileDialog.new()
+        dialog.set_title("Attach a saved evidence report to this article")
+        dialog.set_initial_folder(Gio.File.new_for_path(str(VERSIONS_DIR)))
+        def finish(source, result):
+            try:
+                path = source.open_finish(result).get_path()
+            except GLib.Error:
+                return
+            if self._disposed:
+                return
+            if page not in self.open_tabs or self.open_tabs[page] != source_path:
+                self._show_error("Article changed", "Select the article again and retry attaching the report.")
+                return
+            if not path:
+                self._show_error("Choose a local report", "Select a Co-Writer Evidence Audit saved on this computer.")
+                return
+            try:
+                pressroom.attach_report(WORK_DIR / "research", source_path, path)
+            except (OSError, ValueError) as exc:
+                self._show_error("Could not attach evidence report", exc)
+                return
+            self._append_chat("System", "Evidence report attached to the article. Its original reviewed draft and passage are unknown; check it against your current wording in Open Pressroom.")
+        dialog.open(self, None, finish)
+
+    def _on_send_pressroom(self, *_args):
+        page, _, buf = self._get_current_page()
+        if page is None or buf is None:
+            return
+        if self._job is not None:
+            self._show_error("Research is still running", "Finish or stop the current assistant task before sending this article.")
+            return
+        source = self.open_tabs[page]
+        title, text = self._document_snapshot()
+        try:
+            audits = pressroom.load_reviews(WORK_DIR / "research", source)
+            path = pressroom.write_package(WORK_DIR / "shared" / "pressroom", title, text, source, audits)
+            pressroom.launch(path)
+        except (OSError, ValueError, RuntimeError) as exc:
+            saved = f"\n\nArticle package saved at {path}" if "path" in locals() else ""
+            self._show_error("Could not send article to Open Pressroom", str(exc) + saved)
+            return
+        self._append_chat("System", f"Sent a copy to Open Pressroom with {len(audits)} linked evidence review(s). "
+                          "Your draft is unchanged. Use Attach evidence report to include older reports; their review context is recorded as unknown.")
+
+    def _on_export(self, action, param):
+        snapshot = self._document_snapshot()
+        if not snapshot:
+            return
+        title, text = snapshot
+        dialog = Gtk.FileDialog.new()
+        dialog.set_title("Export Copy — choose .md, .txt, .html, .pdf, .docx or .odt")
+        dialog.set_initial_name(title + ".md")
+        def finish(source, result):
+            try:
+                filename = source.save_finish(result).get_path()
+            except GLib.Error:
+                return
+            if self._disposed:
+                return
+            if not filename:
+                self._show_error("Choose a local file", "Export to a location on your computer.")
+                return
+            path = Path(filename)
+            if str(path.resolve()) in self.open_tabs.values():
+                self._show_error("Document already open", "Choose a new filename for an exported copy. Use Save to update an open document.")
+                return
+            self._background_copy(path, text, title, lambda _: None)
+        dialog.save(self, None, finish)
 
     def _on_recover(self, action, param):
         dialog = Gtk.FileDialog.new()
@@ -2326,18 +2680,33 @@ Raw content:
 class CoWriterApp(Adw.Application):
     def __init__(self):
         super().__init__(application_id="com.github.chukrobertson.cowriter",
-                         flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
+                         flags=Gio.ApplicationFlags.HANDLES_OPEN)
 
-    def do_activate(self):
+    def _ensure_window(self):
         win = self.props.active_window
         if not win:
             win = CoWriterWindow(self)
+        return win
+
+    def do_activate(self):
+        self._ensure_window().present()
+
+    def do_open(self, files, _n_files, _hint):
+        win = self._ensure_window()
         win.present()
+        for file in files:
+            path = file.get_path()
+            if path is None:
+                win._show_error("Could not open document", "Choose a local file.")
+            elif not Path(path).is_file():
+                win._show_error("Could not open document", "The selected file does not exist or is not a document.")
+            else:
+                win._open_document(path)
 
 
-def main():
+def main(argv=None):
     app = CoWriterApp()
-    return app.run(None)
+    return app.run(sys.argv if argv is None else argv)
 
 
 if __name__ == "__main__":

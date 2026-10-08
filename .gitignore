@@ -7,6 +7,16 @@ __pycache__/
 # Build
 build/
 dist/
+.pybuild/
+*.deb
+*.buildinfo
+*.changes
+debian/.debhelper/
+debian/cowriter/
+debian/files
+debian/debhelper-build-stamp
+debian/*.substvars
+debian/*.debhelper
 
 # Virtual environments
 .venv/

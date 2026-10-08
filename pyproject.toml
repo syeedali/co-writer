@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cowriter"
-version = "4.0.0"
+version = "4.1.0"
 authors = [
     { name = "Chuck Robertson" }
 ]
 description = "A local writing assistant that integrates with Ollama"
 readme = "README.md"
 license = { text = "MIT" }
-requires-python = ">=3.7"
+requires-python = ">=3.9"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -58,4 +58,4 @@ package-dir = { "" = "src" }
 where = ["src"]
 
 [tool.setuptools.package-data]
-cowriter = ["soul.md"]
+cowriter = ["soul.md", "poetry_data/*"]
